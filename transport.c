@@ -1,6 +1,7 @@
 #include "sliding_window.h"
 
 FILE *fp;
+int WINDOW_SIZE = 30;
 
 int not_all_received(window_object_t *window)
 {
@@ -8,15 +9,17 @@ int not_all_received(window_object_t *window)
     {
         if (window[i].status != SAVED)
         {
-            printf("true\n");
             return 1;
         }
     }
-    printf("false\n");
     return 0;
 }
 void print_to_file(window_object_t *window, char filename[])
 {
+    int status0 = window[0].status;
+    if ( status0 !=RECEIVED && status0 != SAVED){
+        return;
+    }
     int index = 0;
     fp = fopen(filename, "ab");
 
@@ -34,10 +37,10 @@ void print_to_file(window_object_t *window, char filename[])
         }
         else
         {
-            printf("save to file window el: %d\n", index);
+            // printf("save to file window el: %d\n", index);
             char *saveme;
             size_t elements_written = fwrite(el_to_write.data, sizeof *el_to_write.data, el_to_write.length, fp);
-            printf("el to write: %ld, el wrote: %ld, el size: %ld\n", sizeof el_to_write.data, elements_written, sizeof *el_to_write.data);
+            // printf("el to write: %ld, el wrote: %ld, el size: %ld\n", sizeof el_to_write.data, elements_written, sizeof *el_to_write.data);
             window[index].status = SAVED;
         }
         index++;
@@ -50,6 +53,7 @@ int main(int argc, char *argv[])
     int port;
     char file_name[100];
     int bytes;
+    int all_packets;
 
     // Check input data
     if (argc != 5)
@@ -62,7 +66,13 @@ int main(int argc, char *argv[])
     strcpy(file_name, argv[3]);
     bytes = atoi(argv[4]);
     int packets_left = bytes % DEFAULT_LENGTH == 0 ? (int)(bytes / DEFAULT_LENGTH) : (int)(bytes / DEFAULT_LENGTH) + 1;
-    printf("Packet left: %d\n", packets_left);
+    all_packets = packets_left;
+    // printf("Packet left: %d\n", packets_left);
+    if (packets_left < WINDOW_SIZE)
+    {
+        WINDOW_SIZE = packets_left;
+    }
+    // printf("Window size: %d\n",WINDOW_SIZE);
     // Remove file if exists - appending data on the end of file could be incorrect if file exists before and contains same data
     remove(file_name);
     // Create socket
@@ -79,58 +89,63 @@ int main(int argc, char *argv[])
     int server_len = sizeof(server_address);
     if (inet_pton(AF_INET, ip_address, &server_address.sin_addr) != 1)
     {
-        printf("Incorrect IP address\n");
-        return EXIT_FAILURE;
+        ERROR("Incorrect IP address\n");
     }
 
     window_object_t current_window[WINDOW_SIZE];
     // initialize window
-    printf("\nInitialize\n");
+    // printf("\nInitialize\n");
 
-    initialize_window(current_window, bytes);
+    initialize_window(current_window, bytes, WINDOW_SIZE);
     packets_left -= WINDOW_SIZE;
-    printf("Packet left: %d\n", packets_left);
+    // printf("Packet left: %d\n", packets_left);
 
-    for (int i = 0; i < WINDOW_SIZE; i++)
-    {
-        printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
-    }
+    // for (int i = 0; i < WINDOW_SIZE; i++)
+    // {
+    //     printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+    // }
     while (packets_left > 0 || not_all_received(current_window))
     {
         // Send packets from window
-        printf("\nSend\n");
+        // printf("\nSend\n");
 
-        send_packets(current_window, 0, sockfd, &server_address, server_len);
-        for (int i = 0; i < WINDOW_SIZE; i++)
-        {
-            printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
-        }
+        send_packets(current_window, 0, sockfd, &server_address, server_len, WINDOW_SIZE);
+        // for (int i = 0; i < WINDOW_SIZE; i++)
+        // {
+        //     printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+        // }
         // Proceed received packets
-        printf("\nProceed\n");
+        // printf("\nProceed\n");
 
-        proceed_packets(sockfd, &server_address, current_window);
+        proceed_packets(sockfd, &server_address, current_window, WINDOW_SIZE);
 
-        for (int i = 0; i < WINDOW_SIZE; i++)
-        {
-            printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
-        }
+        // for (int i = 0; i < WINDOW_SIZE; i++)
+        // {
+        //     printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+        // }
         // Print to file
-        printf("\nPrint\n");
+        // printf("\nPrint\n");
 
         print_to_file(current_window, file_name);
-        for (int i = 0; i < WINDOW_SIZE; i++)
-        {
-            printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
-        }
+        // for (int i = 0; i < WINDOW_SIZE; i++)
+        // {
+        //     printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+        // }
         // Slide window
-        printf("\nSlide\n");
+        // printf("\nSlide\n");
 
-        packets_left = slide_window(current_window, packets_left, bytes);
-        for (int i = 0; i < WINDOW_SIZE; i++)
+        int updated_packets_left = slide_window(current_window, packets_left, bytes, WINDOW_SIZE);
+        // for (int i = 0; i < WINDOW_SIZE; i++)
+        // {
+        //     printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+        // }
+        // printf("Packet left: %d, %d\n", packets_left, not_all_received(current_window));
+        if (updated_packets_left < packets_left)
         {
-            printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+            double percent = ((all_packets - packets_left) / (double)all_packets) * 100;
+            printf("%0.3f%%\n", percent);
         }
-        printf("Packet left: %d, %d\n", packets_left, not_all_received(current_window));
+        packets_left = updated_packets_left;
     }
     // Close socket
     if (close(sockfd) < 0)

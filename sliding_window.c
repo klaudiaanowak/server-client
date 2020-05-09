@@ -1,6 +1,6 @@
 #include "sliding_window.h"
 
-int update_window_received_packets(window_object_t *window, char *rest)
+int update_window_received_packets(window_object_t *window, char *rest, int window_size)
 {
 
     char delim[] = " ";
@@ -14,16 +14,16 @@ int update_window_received_packets(window_object_t *window, char *rest)
 
     int bytes = atoi(strtok_r(rest, "\n", &rest));
 
-    printf("Success!\n");
+    // printf("Success!\n");
 
     char *to_write = rest;
 
-    for (int i = 0; i < WINDOW_SIZE; i++)
+    for (int i = 0; i < window_size; i++)
     {
         window_object_t el_to_write = window[i];
         if (el_to_write.start == start && el_to_write.length == bytes && el_to_write.status != SAVED && el_to_write.status != RECEIVED)
         {
-            printf("FOUND %d %d index: %d\n", start, bytes, i);
+            // printf("FOUND %d %d index: %d\n", start, bytes, i);
             window[i].status = RECEIVED;
             memcpy(window[i].data, to_write, sizeof(char) * window[i].length);
         }
@@ -31,14 +31,15 @@ int update_window_received_packets(window_object_t *window, char *rest)
     return 0;
 }
 
-void initialize_window(window_object_t window[], int bytes_to_receive)
+void initialize_window(window_object_t window[], int bytes_to_receive, int window_size)
 {
+
     int i = 0;
     int start = 0;
-    while (i < WINDOW_SIZE && start < bytes_to_receive)
+    while (i < window_size && start < bytes_to_receive)
     {
 
-        printf("I=%d, diff=%d\n", i, bytes_to_receive - start);
+        // printf("I=%d, diff=%d\n", i, bytes_to_receive - start);
         int request = 0;
         if (bytes_to_receive - start > DEFAULT_LENGTH)
         {
@@ -51,21 +52,21 @@ void initialize_window(window_object_t window[], int bytes_to_receive)
         window[i].start = start;
         window[i].length = request;
         window[i].status = NOT_ACTIVE;
-        window[i].data = (char*)malloc( request * sizeof(char));
+        window[i].data = (char *)malloc(request * sizeof(char));
         i++;
         start += request;
     }
 }
-void send_packets(window_object_t *window, int first_index, int sockfd, const struct sockaddr_in *server_address, int server_len)
+void send_packets(window_object_t *window, int first_index, int sockfd, const struct sockaddr_in *server_address, int server_len, int window_size)
 {
-    for (int i = first_index; i < WINDOW_SIZE; i++)
+    for (int i = first_index; i < window_size; i++)
     {
         int status = window[i].status;
         if (status == SENT || status == NOT_ACTIVE)
         {
             char message[20];
             sprintf(message, "GET %d %d\n", window[i].start, window[i].length);
-            puts(message);
+            // puts(message);
             ssize_t message_len = strlen(message);
             if (sendto(sockfd, message, message_len, 0, (struct sockaddr *)server_address, server_len) != message_len)
             {
@@ -77,12 +78,13 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
     }
 }
 
-void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window)
+void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size)
 {
-    for (int i = 0; i < WINDOW_SIZE; i++)
+    // for (int i = 0; i < window_size/2; i++)
+    for (int i = 0; i < 3; i++)
     {
         // wait some time to receive
-        int tms = 500;
+        int tms = 10;
         struct timeval tv;
         tv.tv_sec = tms / DEFAULT_LENGTH;
         tv.tv_usec = (tms % DEFAULT_LENGTH) * DEFAULT_LENGTH;
@@ -105,16 +107,16 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
         recv_buffer[bytes_read] = 0;
         char *rest = recv_buffer;
 
-        update_window_received_packets(window, rest);
+        update_window_received_packets(window, rest, window_size);
     }
 }
 
-int slide_window(window_object_t *window, int packets_left, int bytes_to_receive)
+int slide_window(window_object_t *window, int packets_left, int bytes_to_receive, int window_size)
 {
     int first_index = -1;
     int index = 0;
     int slide = 0;
-    while (index < WINDOW_SIZE)
+    while (index < window_size)
     {
         if (window[index].status != SAVED)
         {
@@ -143,19 +145,18 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
         slide = first_index + 1;
         packets_left -= slide;
     }
-    printf("to slide: %d\n", slide);
+    // printf("to slide: %d\n", slide);
     int i = 0;
-    int start_out_of_window = window[WINDOW_SIZE - 1].start;
-    while (i < WINDOW_SIZE)
+    int start_out_of_window = window[window_size - 1].start;
+    while (i < window_size)
     {
 
-        if (i + slide < WINDOW_SIZE)
+        if (i + slide < window_size)
         {
             window[i].start = window[i + slide].start;
             window[i].length = window[i + slide].length;
             window[i].status = window[i + slide].status;
             memcpy(window[i].data, window[i + slide].data, sizeof(char) * window[i].length);
-
         }
         else
         {
