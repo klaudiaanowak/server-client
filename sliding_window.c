@@ -4,9 +4,7 @@ int update_window_received_packets(window_object_t *window, char *rest)
 {
 
     char delim[] = " ";
-    // char *rest = recv_buffer;
     char *ptr = strtok_r(rest, delim, &rest);
-    printf("PTR1 %s\n", ptr);
 
     if (strcmp(ptr, "DATA"))
     {
@@ -22,11 +20,12 @@ int update_window_received_packets(window_object_t *window, char *rest)
 
     for (int i = 0; i < WINDOW_SIZE; i++)
     {
-        if (window[i].start == start && window[i].length == bytes)
+        window_object_t el_to_write = window[i];
+        if (el_to_write.start == start && el_to_write.length == bytes && el_to_write.status != SAVED && el_to_write.status != RECEIVED)
         {
-            printf("FOUND %d %d\n", start, bytes);
+            printf("FOUND %d %d index: %d\n", start, bytes, i);
             window[i].status = RECEIVED;
-            window[i].data = to_write;
+            memcpy(window[i].data, to_write, sizeof(char) * window[i].length);
         }
     }
     return 0;
@@ -38,6 +37,7 @@ void initialize_window(window_object_t window[], int bytes_to_receive)
     int start = 0;
     while (i < WINDOW_SIZE && start < bytes_to_receive)
     {
+
         printf("I=%d, diff=%d\n", i, bytes_to_receive - start);
         int request = 0;
         if (bytes_to_receive - start > DEFAULT_LENGTH)
@@ -51,6 +51,7 @@ void initialize_window(window_object_t window[], int bytes_to_receive)
         window[i].start = start;
         window[i].length = request;
         window[i].status = NOT_ACTIVE;
+        window[i].data = (char*)malloc( request * sizeof(char));
         i++;
         start += request;
     }
@@ -81,7 +82,7 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
     for (int i = 0; i < WINDOW_SIZE; i++)
     {
         // wait some time to receive
-        int tms = 5000;
+        int tms = 500;
         struct timeval tv;
         tv.tv_sec = tms / DEFAULT_LENGTH;
         tv.tv_usec = (tms % DEFAULT_LENGTH) * DEFAULT_LENGTH;
@@ -115,11 +116,12 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
     int slide = 0;
     while (index < WINDOW_SIZE)
     {
-        if (window[index].status != RECEIVED)
+        if (window[index].status != SAVED)
         {
             break;
         }
         else
+        //if(window[index].status != SAVED)
         {
             first_index = index;
             index++;
@@ -139,17 +141,21 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
     {
         // move by first_index
         slide = first_index + 1;
-        packets_left -=slide;
+        packets_left -= slide;
     }
-    printf("to slide: %d\n",slide);
+    printf("to slide: %d\n", slide);
     int i = 0;
-    int start_out_of_window = window[WINDOW_SIZE-1].start;
+    int start_out_of_window = window[WINDOW_SIZE - 1].start;
     while (i < WINDOW_SIZE)
     {
-        //zapis do pliku
+
         if (i + slide < WINDOW_SIZE)
         {
-            window[i] = window[i + slide];
+            window[i].start = window[i + slide].start;
+            window[i].length = window[i + slide].length;
+            window[i].status = window[i + slide].status;
+            memcpy(window[i].data, window[i + slide].data, sizeof(char) * window[i].length);
+
         }
         else
         {
@@ -163,7 +169,7 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
                 window[i].length = bytes_to_receive - window[i].start;
             }
             window[i].status = NOT_ACTIVE;
-            start_out_of_window+=window[i].length;
+            start_out_of_window += window[i].length;
         }
         i++;
     }

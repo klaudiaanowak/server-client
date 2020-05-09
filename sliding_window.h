@@ -10,11 +10,12 @@
 #define ERROR(str) { fprintf(stderr, "%s: %s\n", str, strerror(errno)); exit(EXIT_FAILURE); }
 
 #define BUFFER_SIZE 4096
-#define WINDOW_SIZE 3
+#define WINDOW_SIZE 4
 #define DEFAULT_LENGTH 1000
 #define RECEIVED  1
 #define SENT 0
 #define NOT_ACTIVE -1
+#define SAVED 2
 
 
 typedef struct

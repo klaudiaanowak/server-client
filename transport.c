@@ -2,17 +2,48 @@
 
 FILE *fp;
 
-int all_received(window_object_t *window){
-    for (int i =0 ; i < WINDOW_SIZE; i ++){
-        if (window[i].status != RECEIVED){
-            printf("false\n");
-            return 0;
+int not_all_received(window_object_t *window)
+{
+    for (int i = 0; i < WINDOW_SIZE; i++)
+    {
+        if (window[i].status != SAVED)
+        {
+            printf("true\n");
+            return 1;
         }
     }
-    printf("true\n");
-    return 1;
+    printf("false\n");
+    return 0;
 }
+void print_to_file(window_object_t *window, char filename[])
+{
+    int index = 0;
+    fp = fopen(filename, "ab");
 
+    while (index < WINDOW_SIZE)
+    {
+        window_object_t el_to_write = window[index];
+        if (el_to_write.status == SAVED)
+        {
+            index++;
+            continue;
+        }
+        if (el_to_write.status != RECEIVED)
+        {
+            break;
+        }
+        else
+        {
+            printf("save to file window el: %d\n", index);
+            char *saveme;
+            size_t elements_written = fwrite(el_to_write.data, sizeof *el_to_write.data, el_to_write.length, fp);
+            printf("el to write: %ld, el wrote: %ld, el size: %ld\n", sizeof el_to_write.data, elements_written, sizeof *el_to_write.data);
+            window[index].status = SAVED;
+        }
+        index++;
+    }
+    fclose(fp);
+}
 int main(int argc, char *argv[])
 {
     char ip_address[20];
@@ -64,7 +95,7 @@ int main(int argc, char *argv[])
     {
         printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
     }
-   while (packets_left>0 || all_received(current_window))
+    while (packets_left > 0 || not_all_received(current_window))
     {
         // Send packets from window
         printf("\nSend\n");
@@ -83,7 +114,14 @@ int main(int argc, char *argv[])
         {
             printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
         }
+        // Print to file
+        printf("\nPrint\n");
 
+        print_to_file(current_window, file_name);
+        for (int i = 0; i < WINDOW_SIZE; i++)
+        {
+            printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
+        }
         // Slide window
         printf("\nSlide\n");
 
@@ -92,7 +130,7 @@ int main(int argc, char *argv[])
         {
             printf("Window: %d: start = %d, len= %d, status = %d\n", i, current_window[i].start, current_window[i].length, current_window[i].status);
         }
-        printf("Packet left: %d\n", packets_left);
+        printf("Packet left: %d, %d\n", packets_left, not_all_received(current_window));
     }
     // Close socket
     if (close(sockfd) < 0)
