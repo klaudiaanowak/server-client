@@ -72,22 +72,24 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
     }
 }
 
-void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size)
+void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size, int packets_left)
 {
-    for (int i = 0; i < 2; i++)
+    int iteration = packets_left < 40 ? packets_left+1 : 40;
+    struct timeval tv;
+    int tms = 100;
+    struct sockaddr_in receiver_address;
+    socklen_t len = sizeof(receiver_address);
+    u_int8_t recv_buffer[BUFFER_SIZE + 1];
+    for (int i = 0; i < iteration; i++)
     {
         // wait some time to receive
-        int tms = 10;
-        struct timeval tv;
         tv.tv_sec = tms / DEFAULT_LENGTH;
         tv.tv_usec = (tms % DEFAULT_LENGTH) * DEFAULT_LENGTH;
         if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,
                        sizeof tv) < 0)
             ERROR("setsockopt failed\n");
         // Receive packet
-        struct sockaddr_in receiver_address;
-        socklen_t len = sizeof(receiver_address);
-        u_int8_t recv_buffer[BUFFER_SIZE + 1];
+        tms = 0;
         ssize_t bytes_read = recvfrom(sockfd, recv_buffer, BUFFER_SIZE, 0, (struct sockaddr *)&receiver_address, &len);
         if (bytes_read < 0)
             continue;

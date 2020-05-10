@@ -4,7 +4,7 @@
 #include "sliding_window.h"
 
 FILE *fp;
-int WINDOW_SIZE = 500;
+int WINDOW_SIZE = 450;
 int all_packets;
 
 int not_all_received(window_object_t *window)
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
         send_packets(current_window, 0, sockfd, &server_address, server_len, WINDOW_SIZE);
 
         // Proceed received packets
-        proceed_packets(sockfd, &server_address, current_window, WINDOW_SIZE);
+        proceed_packets(sockfd, &server_address, current_window, WINDOW_SIZE,all_packets-saved_packets);
 
         // Print to file first packages from current window
         saved_packets = print_to_file(current_window, file_name, saved_packets);

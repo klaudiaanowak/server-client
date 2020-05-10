@@ -28,5 +28,5 @@ typedef struct
 
 void initialize_window(window_object_t *window, int bytes_to_receive, int window_size);
 void send_packets(window_object_t *window, int first_index, int sockfd, const struct sockaddr_in *server_address, int server_len, int window_size);
-void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window , int window_size);
+void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window , int window_size, int packets_left);
 int slide_window(window_object_t *window, int packets_left, int bytes_to_receive, int window_size);
