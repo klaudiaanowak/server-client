@@ -9,7 +9,6 @@
 #define ERROR(str) { fprintf(stderr, "%s: %s\n", str, strerror(errno)); exit(EXIT_FAILURE); }
 
 #define BUFFER_SIZE 4096
-// #define WINDOW_SIZE 4
 #define DEFAULT_LENGTH 1000
 #define RECEIVED 1
 #define SENT 0

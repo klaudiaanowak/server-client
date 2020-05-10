@@ -11,11 +11,7 @@ int update_window_received_packets(window_object_t *window, char *rest, int wind
         return 0;
     }
     int start = atoi(strtok_r(rest, delim, &rest));
-
     int bytes = atoi(strtok_r(rest, "\n", &rest));
-
-    // printf("Success!\n");
-
     char *to_write = rest;
 
     for (int i = 0; i < window_size; i++)
@@ -23,7 +19,6 @@ int update_window_received_packets(window_object_t *window, char *rest, int wind
         window_object_t el_to_write = window[i];
         if (el_to_write.start == start && el_to_write.length == bytes && el_to_write.status != SAVED && el_to_write.status != RECEIVED)
         {
-            // printf("FOUND %d %d index: %d\n", start, bytes, i);
             window[i].status = RECEIVED;
             memcpy(window[i].data, to_write, sizeof(char) * window[i].length);
         }
@@ -38,8 +33,6 @@ void initialize_window(window_object_t window[], int bytes_to_receive, int windo
     int start = 0;
     while (i < window_size && start < bytes_to_receive)
     {
-
-        // printf("I=%d, diff=%d\n", i, bytes_to_receive - start);
         int request = 0;
         if (bytes_to_receive - start > DEFAULT_LENGTH)
         {
@@ -66,13 +59,11 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
         {
             char message[20];
             sprintf(message, "GET %d %d\n", window[i].start, window[i].length);
-            // puts(message);
             ssize_t message_len = strlen(message);
             if (sendto(sockfd, message, message_len, 0, (struct sockaddr *)server_address, server_len) != message_len)
             {
                 ERROR("sendto error");
             }
-
             window[i].status = SENT;
         }
     }
@@ -80,7 +71,6 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
 
 void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size)
 {
-    // for (int i = 0; i < window_size/2; i++)
     for (int i = 0; i < 3; i++)
     {
         // wait some time to receive
@@ -88,7 +78,6 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
         struct timeval tv;
         tv.tv_sec = tms / DEFAULT_LENGTH;
         tv.tv_usec = (tms % DEFAULT_LENGTH) * DEFAULT_LENGTH;
-        // select(0, NULL, NULL, NULL, &tv);
         if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,
                        sizeof tv) < 0)
             ERROR("setsockopt failed\n");
@@ -98,7 +87,6 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
         u_int8_t recv_buffer[BUFFER_SIZE + 1];
         ssize_t bytes_read = recvfrom(sockfd, recv_buffer, BUFFER_SIZE, 0, (struct sockaddr *)&receiver_address, &len);
         if (bytes_read < 0)
-            // ERROR("recv error");
             continue;
         if (receiver_address.sin_addr.s_addr != (*server_address).sin_addr.s_addr || receiver_address.sin_port != (*server_address).sin_port)
         {
@@ -106,7 +94,7 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
         }
         recv_buffer[bytes_read] = 0;
         char *rest = recv_buffer;
-
+        // Update statuses and data of current window if packet received
         update_window_received_packets(window, rest, window_size);
     }
 }
@@ -116,6 +104,7 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
     int first_index = -1;
     int index = 0;
     int slide = 0;
+    // Check how many packets can be moved
     while (index < window_size)
     {
         if (window[index].status != SAVED)
@@ -123,7 +112,6 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
             break;
         }
         else
-        //if(window[index].status != SAVED)
         {
             first_index = index;
             index++;
@@ -145,12 +133,12 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
         slide = first_index + 1;
         packets_left -= slide;
     }
-    // printf("to slide: %d\n", slide);
     int i = 0;
     int start_out_of_window = window[window_size - 1].start;
+    // move packets
     while (i < window_size)
     {
-
+        // move packets inside the window
         if (i + slide < window_size)
         {
             window[i].start = window[i + slide].start;
@@ -158,6 +146,7 @@ int slide_window(window_object_t *window, int packets_left, int bytes_to_receive
             window[i].status = window[i + slide].status;
             memcpy(window[i].data, window[i + slide].data, sizeof(char) * window[i].length);
         }
+        // move packets and set new at the end of the window
         else
         {
             window[i].start = start_out_of_window + DEFAULT_LENGTH;
