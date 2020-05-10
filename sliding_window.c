@@ -76,7 +76,7 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
 {
     int iteration = packets_left < 40 ? packets_left+1 : 40;
     struct timeval tv;
-    int tms = 100;
+    int tms = 10;
     struct sockaddr_in receiver_address;
     socklen_t len = sizeof(receiver_address);
     u_int8_t recv_buffer[BUFFER_SIZE + 1];
@@ -89,7 +89,7 @@ void proceed_packets(int sockfd, const struct sockaddr_in *server_address, windo
                        sizeof tv) < 0)
             ERROR("setsockopt failed\n");
         // Receive packet
-        tms = 0;
+        tms = 1;
         ssize_t bytes_read = recvfrom(sockfd, recv_buffer, BUFFER_SIZE, 0, (struct sockaddr *)&receiver_address, &len);
         if (bytes_read < 0)
             continue;
