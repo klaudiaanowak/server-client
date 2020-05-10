@@ -1,3 +1,6 @@
+// Klaudia Nowak
+// 297936
+
 #include "sliding_window.h"
 
 int update_window_received_packets(window_object_t *window, char *rest, int window_size)
@@ -71,7 +74,7 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
 
 void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size)
 {
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 2; i++)
     {
         // wait some time to receive
         int tms = 10;

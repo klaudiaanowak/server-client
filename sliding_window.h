@@ -1,3 +1,6 @@
+// Klaudia Nowak
+// 297936 
+
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <stdio.h>

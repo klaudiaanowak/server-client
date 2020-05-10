@@ -1,3 +1,6 @@
+// Klaudia Nowak
+// 297936
+
 #include "sliding_window.h"
 
 FILE *fp;
