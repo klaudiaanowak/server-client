@@ -74,9 +74,9 @@ void send_packets(window_object_t *window, int first_index, int sockfd, const st
 
 void proceed_packets(int sockfd, const struct sockaddr_in *server_address, window_object_t *window, int window_size, int packets_left)
 {
-    int iteration = packets_left < 40 ? packets_left+1 : 40;
+    int iteration = packets_left < 60 ? packets_left+1 : 60;
     struct timeval tv;
-    int tms = 10;
+    int tms = 5;
     struct sockaddr_in receiver_address;
     socklen_t len = sizeof(receiver_address);
     u_int8_t recv_buffer[BUFFER_SIZE + 1];

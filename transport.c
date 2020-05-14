@@ -4,7 +4,7 @@
 #include "sliding_window.h"
 
 FILE *fp;
-int WINDOW_SIZE = 450;
+int WINDOW_SIZE = 1500;
 int all_packets;
 
 int not_all_received(window_object_t *window)
